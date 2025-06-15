@@ -1,0 +1,44 @@
+# .github/workflows/deploy.yml
+# This workflow automates the build and deployment of your AuraSense React App
+# to Firebase Hosting. It triggers on pushes to the 'master' branch or can be
+# manually dispatched from the GitHub Actions tab.
+
+name: Deploy AuraSense React App to Firebase Hosting
+
+on:
+  push:
+    branches:
+      - master # IMPORTANT: This now triggers on pushes to your 'master' branch
+  workflow_dispatch: # Allows you to manually trigger the workflow from the GitHub UI
+
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest # Uses a fresh Ubuntu virtual machine for each run
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4 # Action to check out your repository code onto the runner
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4 # Action to set up Node.js environment
+        with:
+          node-version: '18' # Use a stable Node.js LTS version (e.g., 18 or 20 for broader compatibility)
+
+      - name: Install Dependencies
+        run: npm ci # 'npm ci' ensures a clean, repeatable installation of dependencies based on package-lock.json
+
+      - name: Build React App
+        run: npm run build # Runs the build script defined in your package.json (creates the 'build' folder)
+
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools # Installs the Firebase CLI globally on the virtual machine runner
+
+      - name: Deploy to Firebase Hosting
+        # This step uses the Firebase CLI to deploy your built application.
+        # '--only hosting' ensures only hosting is deployed.
+        # '--token' uses the secret you stored in GitHub for authentication.
+        run: firebase deploy --only hosting --token ${{ secrets.FIREBASE_SERVICE_ACCOUNT_TOKEN }}
+        env:
+          # This environment variable is passed to the 'firebase deploy' command if needed,
+          # explicitly setting your Firebase Project ID for clarity.
+          FIREBASE_PROJECT_ID: uno-4-57f7c # Your Firebase Project ID
