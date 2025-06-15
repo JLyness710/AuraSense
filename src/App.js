@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react'; // Added useMemo
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, collection, query, onSnapshot, orderBy, limit } from 'firebase/firestore';
@@ -19,15 +19,17 @@ function App() {
   // State for loading indicator
   const [isLoading, setIsLoading] = useState(true);
 
+  // --- Firebase Configuration Variables (Declared within App component using useMemo) ---
+  // These variables are globally available in the Canvas environment but need to be
+  // formally accessed within the React component for ESLint and the build process.
+  const memoizedAppId = useMemo(() => typeof __app_id !== 'undefined' ? __app_id : 'default-app-id', []);
+  const memoizedFirebaseConfig = useMemo(() => typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {}, []);
+  const memoizedInitialAuthToken = useMemo(() => typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null, []);
+
   // --- Firebase Initialization and Authentication ---
   useEffect(() => {
     try {
-      // MANDATORY: Access global Firebase config variables injected by the Canvas environment
-      const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-      const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-      const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-
-      if (!firebaseConfig || Object.keys(firebaseConfig).length === 0) {
+      if (!memoizedFirebaseConfig || Object.keys(memoizedFirebaseConfig).length === 0) {
         setError('Firebase configuration not found. Please ensure __firebase_config is set.');
         setIsLoading(false);
         console.error('Firebase configuration is missing or empty.');
@@ -35,7 +37,7 @@ function App() {
       }
 
       // Initialize Firebase App
-      const app = initializeApp(firebaseConfig);
+      const app = initializeApp(memoizedFirebaseConfig);
       // Initialize Firestore and Auth services
       const firestoreDb = getFirestore(app);
       const firebaseAuth = getAuth(app);
@@ -53,8 +55,8 @@ function App() {
         } else {
           // User is signed out. Attempt anonymous sign-in or use custom token.
           try {
-            if (initialAuthToken) {
-              await signInWithCustomToken(firebaseAuth, initialAuthToken);
+            if (memoizedInitialAuthToken) {
+              await signInWithCustomToken(firebaseAuth, memoizedInitialAuthToken);
               console.log('Signed in with custom token.');
             } else {
               await signInAnonymously(firebaseAuth);
@@ -76,7 +78,7 @@ function App() {
       setIsLoading(false);
       console.error('Firebase initialization error:', err);
     }
-  }, []); // Run once on component mount
+  }, [memoizedFirebaseConfig, memoizedInitialAuthToken]); // Dependencies for this effect
 
   // --- Firestore Data Fetching ---
   useEffect(() => {
@@ -84,14 +86,9 @@ function App() {
     if (db && userId) {
       setError(null); // Clear previous errors
 
-      // Define the path for public data: /artifacts/{appId}/public/data/sensorReadings
-      // Note: We use a placeholder for appId as it's not strictly needed for the collection path when public.
-      // However, it's good practice to demonstrate how it would be used if dynamically building paths.
-      // For this example, we assume `sensorReadings` is a public top-level collection for simplicity
-      // and to demonstrate real-time data flow quickly.
-      // If we were using the recommended path /artifacts/{appId}/public/data/sensorReadings
-      // const sensorReadingsCollectionRef = collection(db, `artifacts/${__app_id}/public/data/sensorReadings`);
-      // For this simple example, we use a top-level public collection as per many Firebase tutorials.
+      // For this simple example, we use a top-level public collection 'sensorReadings'.
+      // If you were using the recommended path /artifacts/{appId}/public/data/sensorReadings
+      // you would use: collection(db, `artifacts/${memoizedAppId}/public/data/sensorReadings`);
       const sensorReadingsCollectionRef = collection(db, 'sensorReadings');
 
       // Create a query to get the latest 10 readings, ordered by timestamp
