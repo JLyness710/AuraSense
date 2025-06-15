@@ -1,3 +1,4 @@
+// New
 import React, { useState, useEffect, useMemo } from 'react'; // Added useMemo
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
